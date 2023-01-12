@@ -69,7 +69,9 @@ export function FixedHeightTable({
     <div
       ref={tableContainerRef}
       className="container"
-      style={{ height: height }}
+      style={{
+        height: height,
+      }}
     >
       <table>
         <thead className="sticky-header">

@@ -8,7 +8,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useWindowVirtualizer, Virtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import { Person } from "./makeData";
 
@@ -56,12 +56,6 @@ export function WindowHeightTable({ data, columns }: FixedHeightTableProps) {
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 
-  console.log(
-    virtualRows?.[0]?.start,
-    rowVirtualizer.scrollOffset,
-    tableOffsetRef.current
-  );
-
   // Make header sticky
   const [isHeaderSticky, setIsHeaderSticky] = React.useState(false);
   React.useLayoutEffect(() => {
@@ -76,14 +70,24 @@ export function WindowHeightTable({ data, columns }: FixedHeightTableProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // We need to add a padding row at top that grows as we scroll down to ensure
+  // the table scrolls down with the page
+  const paddingTop =
+    virtualRows.length > 0
+      ? virtualRows?.[0]?.start - tableOffsetRef.current || 0
+      : 0;
+
   return (
     <div
       ref={tableContainerRef}
       className="container"
-      style={{ height: rowVirtualizer.getTotalSize() }}
+      style={{
+        // Need to add 52px to totalSize to account for header height + container border top and bottom
+        height: rowVirtualizer.getTotalSize() + 52,
+      }}
     >
       <table>
-        <thead className={isHeaderSticky ? "fixed-header" : undefined}>
+        <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
@@ -119,17 +123,11 @@ export function WindowHeightTable({ data, columns }: FixedHeightTableProps) {
           ))}
         </thead>
         <tbody>
-          <tr>
-            <td
-              style={{
-                height: `${
-                  virtualRows.length > 0
-                    ? virtualRows?.[0]?.start - tableOffsetRef.current || 0
-                    : 0
-                }px`,
-              }}
-            />
-          </tr>
+          {paddingTop > 0 && (
+            <tr>
+              <td style={{ height: `${paddingTop}px` }} />
+            </tr>
+          )}
           {virtualRows.map((virtualRow) => {
             const row = rows[virtualRow.index] as Row<Person>;
             return (
@@ -140,7 +138,10 @@ export function WindowHeightTable({ data, columns }: FixedHeightTableProps) {
               >
                 {row.getVisibleCells().map((cell) => {
                   return (
-                    <td key={cell.id}>
+                    <td
+                      key={cell.id}
+                      style={{ width: cell.getContext().column.getSize() }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
